@@ -79,8 +79,7 @@
             :else (throw
                     (ex-info
                       "Unsupported type"
-                      {:type (type x)
-                       :value x
+                      {:value x
                        :expected ["boolean" "collection"]
                        :problems (me/humanize (m/explain schema x))}))))}))})
 
@@ -98,9 +97,8 @@
             :else
             (throw
               (ex-info
-                "Unsupported type"
-                {:type (type x)
-                 :value x
+                (format "Unsupported type: %s" (type x))
+                {:value x
                  :expected ["string" "collection"]
                  :problems (me/humanize (m/explain schema x))}))))}))})
 
@@ -117,9 +115,8 @@
             (sequential? x) (mapv (partial range-query props) x)
             :else (throw
                     (ex-info
-                      "Unsupported type"
-                      {:type (type x)
-                       :value x
+                      (format "Unsupported type: %s" (type x))
+                      {:value x
                        :expected ["map" "collection"]
                        :problems (me/humanize (m/explain schema x))}))))}))})
 
@@ -142,9 +139,8 @@
               {:bool {:must queries}}))
           (throw
             (ex-info
-              "Unsupported type"
-              {:type (type x)
-               :value x
+              (format "Unsupported type: %s" (type x))
+              {:value x
                :expected ["map"]
                :problems (me/humanize (m/explain schema x))}))))})})
 
