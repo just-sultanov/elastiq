@@ -153,6 +153,10 @@
 ;; Schema builders
 ;;
 
+(def FieldType
+  [:enum "boolean" "keyword" "text" "date"])
+
+
 (defmulti entry
   (fn [{:search/keys [metadata]}]
     (case (:type metadata)
@@ -164,11 +168,13 @@
 
 (defmethod entry :unsupported
   [{:search/keys [metadata]}]
-  (throw
-    (ex-info
-      "Unsupported type"
-      {:type (:type metadata)
-       :expected ["keyword" "text" "boolean" "date"]})))
+  (let [field-type (:type metadata)]
+    (throw
+      (ex-info
+        (format "Unsupported type: %s" field-type)
+        {:value field-type
+         :expected (vec (rest FieldType))
+         :problems (me/humanize (m/explain FieldType field-type))}))))
 
 
 (defmethod entry :boolean
