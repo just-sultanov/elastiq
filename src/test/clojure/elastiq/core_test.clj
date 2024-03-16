@@ -8,17 +8,17 @@
 ;; {:from 0
 ;;  :size 100
 ;;  :query {;; keyword
-;;          :keywordWithAnalyzer "opened"
-;;          ;; :keywordWithAnalyzer ["opened" "closed"]
+;;          :keywordWithAnalyzer "foo"
+;;          ;; :keywordWithAnalyzer ["foo" "bar"]
 ;;          ;; :keywordWithAnalyzer "*"
 ;;
 ;;          :dateObject {:from "now-365d" :to "now"}
 ;;          ;; :dateObject [{:from "2023-01-01" :to "2023-01-31"}
-;;          ;;             {:from "2024-01-01" :to "2024-01-31"}]
+;;          ;;              {:from "2024-01-01" :to "2024-01-31"}]
 ;;
-;;          :file {:filename "foo.txt"}
-;;          ;; :file [{:filename "foo.txt"}
-;;          ;;        {:filename "bar.txt"}]
+;;          :nestedObject {:fieldOne "foo"}
+;;          ;; :nestedObject [{:fieldOne "foo"}
+;;          ;;                {:fieldOne "bar"}]
 ;;          }}
 
 
