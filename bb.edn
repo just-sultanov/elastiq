@@ -1,0 +1,37 @@
+{:deps {babashka/fs {:mvn/version "0.5.20"}}
+
+ :tasks
+ {:requires ([babashka.fs :as fs]
+             [clojure.string :as str])
+
+  outdated
+  {:doc "Check for outdated dependencies"
+   :task (case (first *command-line-args*)
+           "upgrade" (shell "clojure -M:nop:outdated --main antq.core --upgrade --force")
+           (shell "clojure -M:nop:outdated --main antq.core"))}
+
+  clean
+  {:doc "Run cleanup"
+   :task (doseq [dir ["target" "coverage"]]
+           (fs/delete-tree dir))}
+
+  repl
+  {:doc "Run REPL"
+   :override-builtin true
+   :depends [clean]
+   :task (shell "clj -M:bench:test:develop --main nrepl.cmdline --interactive --middleware '[cider.nrepl/cider-middleware]'")}
+
+  lint {:doc "Run linters"
+        :task (case (first *command-line-args*)
+                "fix" (shell "cljstyle fix src")
+                (do
+                  (shell "cljstyle check src")
+                  (shell "clj-kondo --lint src")))}
+
+  test
+  {:doc "Run tests"
+   :depends [clean]
+   :task (case (first *command-line-args*)
+           "unit" (shell "clojure -M:nop:test --main kaocha.runner --focus :unit")
+           "integration" (shell "clojure -M:nop:test --main kaocha.runner --focus :integration")
+           (shell (str/join \space (into ["clojure -M:nop:test --main kaocha.runner"] *command-line-args*))))}}}

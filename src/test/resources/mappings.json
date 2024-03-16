@@ -1,0 +1,69 @@
+{
+  "index-name": {
+    "mappings": {
+      "doc": {
+        "_meta": {
+          "applicationVersion": "14.15"
+        },
+        "properties": {
+          "notIndexed": {
+            "type": "keyword",
+            "index": false
+          },
+          "notEnabled": {
+            "type": "object",
+            "enabled": false
+          },
+          "textWithAnalyzer": {
+            "type": "text",
+            "analyzer": "some_text_analyzer"
+          },
+          "simpleObject": {
+            "properties": {
+              "fieldOne": {
+                "type": "keyword"
+              },
+              "fieldTwo": {
+                "type": "keyword"
+              }
+            }
+          },
+          "keywordWithFields": {
+            "type": "keyword",
+            "fields": {
+              "subs": {
+                "type": "text",
+                "analyzer": "some_text_analyzer"
+              }
+            }
+          },
+          "nestedObject": {
+            "type": "nested",
+            "properties": {
+              "fieldOne": {
+                "type": "text",
+                "analyzer": "some_text_analyzer"
+              }
+            }
+          },
+          "byteObject": {
+            "type": "byte"
+          },
+          "blobObject": {
+            "type": "binary"
+          },
+          "dateObject": {
+            "type": "date"
+          },
+          "keywordWithAnalyzer": {
+            "type": "keyword",
+            "analyzer": "some_keyword_analyzer"
+          },
+          "booleanObject": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
