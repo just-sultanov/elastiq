@@ -92,7 +92,7 @@
                     (ex-info
                       "Unsupported type"
                       {:value x
-                       :expected ["boolean" "collection"]
+                       :expected ["*" "boolean" "collection"]
                        :problems (me/humanize (m/explain schema x))}))))}))})
 
 
@@ -112,7 +112,7 @@
               (ex-info
                 (format "Unsupported type: %s" (type x))
                 {:value x
-                 :expected ["string" "collection"]
+                 :expected ["*" "string" "collection"]
                  :problems (me/humanize (m/explain schema x))}))))}))})
 
 
@@ -131,7 +131,7 @@
                     (ex-info
                       (format "Unsupported type: %s" (type x))
                       {:value x
-                       :expected ["map" "collection"]
+                       :expected ["*" "map" "collection"]
                        :problems (me/humanize (m/explain schema x))}))))}))})
 
 
@@ -144,6 +144,7 @@
         (fn [x]
           (cond
             (wildcard? x) (exists-query props)
+            (sequential? x) x ; FIXME: doesn't work
             (map? x) (let [queries (reduce-kv
                                      (fn [acc _field query]
                                        (cond
@@ -158,7 +159,7 @@
                     (ex-info
                       (format "Unsupported type: %s" (type x))
                       {:value x
-                       :expected ["map"]
+                       :expected ["*" "map" "collection"]
                        :problems (me/humanize (m/explain schema x))}))))}))})
 
 
