@@ -112,4 +112,67 @@
           (is (= {:bool {:must [{:range {:dateObject {:gte "2023-01-01", :lte "2023-01-31"}}}
                                 {:range {:dateObject {:gte "2024-01-01", :lte "2024-01-31"}}}]}}
                  (transform schema {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
-                                                 {:from "2024-01-01", :to "2024-01-31"}]}))))))))
+                                                 {:from "2024-01-01", :to "2024-01-31"}]}))))))
+
+    (testing "nested query"
+      (let [schema (sut/schema (select-keys properties [:nestedObject]))]
+        (testing "invalid value"
+          (doseq [x [42
+                     []
+                     ["foo" 42]
+                     {}
+                     {:fieldOne 42}]]
+            (is (not (valid? schema {:nestedObject x})))))
+
+        (testing "map value"
+          (doseq [x ["*"
+                     [{:fieldOne "foo"} {:fieldOne "bar"}]
+                     {:fieldOne "*"}
+                     {:fieldOne ["foo" "bar"]}]]
+            (is (valid? schema {:nestedObject x})))
+
+          (testing "exists"
+            (is (= {:bool {:must [{:exists {:field :nestedObject}}]}}
+                   (transform schema {:nestedObject "*"})))
+            (is (= {:bool {:must [{:nested {:path :nestedObject
+                                            :query {:bool {:must [{:exists {:field :nestedObject.fieldOne}}]}}}}]}}
+                   (transform schema {:nestedObject {:fieldOne "*"}}))))
+
+          (testing "keyword"
+            (is (= {:bool {:must [{:nested {:path :nestedObject
+                                            :query {:bool {:must [{:match {:nestedObject.fieldOne {:query "foo"
+                                                                                                   :analyzer "some_text_analyzer"}}}]}}}}]}}
+                   (transform schema {:nestedObject {:fieldOne "foo"}}))))
+
+          (testing "collection of keywords"
+            (is (= {:bool {:must [{:nested {:path :nestedObject
+                                            :query {:bool {:must [{:match {:nestedObject.fieldOne {:query "foo"
+                                                                                                   :analyzer "some_text_analyzer"}}}
+                                                                  {:match {:nestedObject.fieldOne {:query "bar"
+                                                                                                   :analyzer "some_text_analyzer"}}}]}}}}]}}
+                   (transform schema {:nestedObject {:fieldOne ["foo" "bar"]}})))))
+
+        (testing "collection of maps"
+          (is (valid? schema {:nestedObject [{:fieldOne "foo"} {:fieldOne "bar"}]}))
+          #_(is (= {:bool {:must [{:nested {:path :nestedObject
+                                          :query {:bool {:must [{:match {:nestedObject.fieldOne {:query "foo"
+                                                                                                 :analyzer "some_text_analyzer"}}}
+                                                                {:match {:nestedObject.fieldOne {:query "bar"
+                                                                                                 :analyzer "some_text_analyzer"}}}]}}}}]}}
+                 (transform schema {:nestedObject [{:fieldOne "foo"}
+                                                   {:fieldOne "bar"}]}))))))))
+
+
+(comment
+  (def properties
+    (->> (sut/read-mappings "mappings.json")
+         (sut/mappings->properties :index-name)))
+
+ (def schema
+   (sut/schema (select-keys properties [:nestedObject])))
+
+ (try
+   (transform schema {:nestedObject [{:fieldOne "foo"}]})
+   (catch Exception e
+     {:message (ex-message e)
+      :data (ex-data e)})))
