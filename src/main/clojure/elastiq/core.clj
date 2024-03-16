@@ -43,6 +43,10 @@
 ;; Queries
 ;;
 
+(defn exists-query
+  [{:search/keys [field]}]
+  {:exists {:field field}})
+
 
 (defn term-query
   [{:search/keys [field]} v]
@@ -65,6 +69,9 @@
 ;; Query builders
 ;;
 
+(def wildcard?
+  (partial = "*"))
+
 
 (def boolean-query-builder
   {:compile
@@ -74,6 +81,7 @@
        {:enter
         (fn [x]
           (cond
+            (wildcard? x) (exists-query props)
             (boolean? x) (term-query props x)
             (sequential? x) (mapv (partial term-query props) x)
             :else (throw
@@ -92,6 +100,7 @@
        {:enter
         (fn [x]
           (cond
+            (wildcard? x) (exists-query props)
             (string? x) (match-query props x)
             (sequential? x) (mapv (partial match-query props) x)
             :else
@@ -111,6 +120,7 @@
        {:enter
         (fn [x]
           (cond
+            (wildcard? x) (exists-query props)
             (map? x) (range-query props x)
             (sequential? x) (mapv (partial range-query props) x)
             :else (throw
@@ -179,7 +189,7 @@
    {:search/field field
     :search/metadata metadata
     :decode/query-builder boolean-query-builder}
-   [:or :boolean [:sequential {:min 1} :boolean]]])
+   [:or :boolean [:sequential {:min 1} :boolean] [:= "*"]]])
 
 
 (defmethod entry :keyword
@@ -189,7 +199,7 @@
      {:search/field field
       :search/metadata metadata
       :decode/query-builder keyword-query-builder}
-     [:or schema [:sequential {:min 1} schema]]]))
+     [:or schema [:sequential {:min 1} schema] [:= "*"]]]))
 
 
 (defmethod entry :date
@@ -201,7 +211,7 @@
      {:search/field field
       :search/metadata metadata
       :decode/query-builder date-query-builder}
-     [:or schema [:sequential {:min 1} schema]]]))
+     [:or schema [:sequential {:min 1} schema] [:= "*"]]]))
 
 
 (defn schema

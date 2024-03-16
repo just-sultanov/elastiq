@@ -21,62 +21,71 @@
 ;;          ;;                {:fieldOne "bar"}]
 ;;          }}
 
+(defn transform
+  [schema value]
+  (m/decode schema value sut/transformer))
+
+
+(defn valid?
+  [schema value]
+  (m/validate schema value))
+
 
 (deftest ^:unit builder-test
   (let [properties (->> (sut/read-mappings "mappings.json")
                         (sut/mappings->properties :index-name))]
+    (testing "exists query"
+      (let [schema (sut/schema (select-keys properties [:textWithAnalyzer]))]
+
+        (testing "invalid value"
+          (doseq [x [42 [42 42]]]
+            (is (not (valid? schema {:textWithAnalyzer x})))))
+
+        (testing "wildcard value"
+          (is (valid? schema {:textWithAnalyzer "*"}))
+          (is (= {:bool {:must [{:exists {:field :textWithAnalyzer}}]}}
+                 (transform schema {:textWithAnalyzer "*"}))))))
+
+
     (testing "term query"
       (testing "boolean type"
         (let [schema (sut/schema (select-keys properties [:booleanObject]))]
           (testing "invalid value"
-            (is (false? (m/validate schema {:booleanObject 42})))
-            (is (false? (m/validate schema {:booleanObject ["opened" 42]}))))
+            (doseq [x [42 ["foo" 42]]]
+              (is (not (valid? schema {:booleanObject x})))))
 
           (testing "boolean value"
-            (is (true? (m/validate schema {:booleanObject true})))
+            (is (valid? schema {:booleanObject true}))
             (is (= {:bool {:must [{:term {:booleanObject true}}]}}
-                   (m/decode
-                     schema
-                     {:booleanObject true}
-                     sut/transformer))))
+                   (transform schema {:booleanObject true}))))
 
           (testing "collection of booleans"
-            (is (true? (m/validate schema {:booleanObject [true false]})))
+            (is (valid? schema {:booleanObject [true false]}))
             (is (= {:bool {:must [{:term {:booleanObject true}}
                                   {:term {:booleanObject false}}]}}
-                   (m/decode
-                     schema
-                     {:booleanObject [true false]}
-                     sut/transformer)))))))
+                   (transform schema {:booleanObject [true false]})))))))
 
 
     (testing "match query"
       (testing "keyword type"
         (let [schema (sut/schema (select-keys properties [:keywordWithAnalyzer]))]
           (testing "invalid value"
-            (doseq [x [42
-                       ["opened" 42]]]
-              (is (false? (m/validate schema {:keywordWithAnalyzer x})))))
+            (doseq [x [42 ["foo" 42]]]
+              (is (not (valid? schema {:keywordWithAnalyzer x})))))
 
           (testing "string value"
-            (is (true? (m/validate schema {:keywordWithAnalyzer "opened"})))
-            (is (= {:bool {:must [{:match {:keywordWithAnalyzer {:query "opened"
+            (is (valid? schema {:keywordWithAnalyzer "foo"}))
+            (is (= {:bool {:must [{:match {:keywordWithAnalyzer {:query "foo"
                                                                  :analyzer "some_keyword_analyzer"}}}]}}
-                   (m/decode
-                     schema
-                     {:keywordWithAnalyzer "opened"}
-                     sut/transformer))))
+                   (transform schema {:keywordWithAnalyzer "foo"}))))
 
           (testing "collection of strings"
-            (is (true? (m/validate schema {:keywordWithAnalyzer ["opened" "closed"]})))
-            (is (= {:bool {:must [{:match {:keywordWithAnalyzer {:query "opened"
+            (is (valid? schema {:keywordWithAnalyzer ["foo" "bar"]}))
+            (is (= {:bool {:must [{:match {:keywordWithAnalyzer {:query "foo"
                                                                  :analyzer "some_keyword_analyzer"}}}
-                                  {:match {:keywordWithAnalyzer {:query "closed"
+                                  {:match {:keywordWithAnalyzer {:query "bar"
                                                                  :analyzer "some_keyword_analyzer"}}}]}}
-                   (m/decode
-                     schema
-                     {:keywordWithAnalyzer ["opened" "closed"]}
-                     sut/transformer)))))))
+                   (transform schema {:keywordWithAnalyzer ["foo" "bar"]})))))))
 
 
     (testing "date query"
@@ -90,23 +99,17 @@
                      {:to "now-365d"}
                      {:from "" :to ""}
                      {:from 42 :to 42}]]
-            (is (false? (m/validate schema {:dateObject x})))))
+            (is (not (valid? schema {:dateObject x})))))
 
         (testing "map value"
-          (is (true? (m/validate schema {:dateObject {:from "now-365d", :to "now"}})))
+          (is (valid? schema {:dateObject {:from "now-365d", :to "now"}}))
           (is (= {:bool {:must [{:range {:dateObject {:gte "now-365d", :lte "now"}}}]}}
-                 (m/decode
-                   schema
-                   {:dateObject {:from "now-365d", :to "now"}}
-                   sut/transformer))))
+                 (transform schema {:dateObject {:from "now-365d", :to "now"}}))))
 
         (testing "collection of maps"
-          (is (true? (m/validate schema {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
-                                                      {:from "2024-01-01", :to "2024-01-31"}]})))
+          (is (valid? schema {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
+                                           {:from "2024-01-01", :to "2024-01-31"}]}))
           (is (= {:bool {:must [{:range {:dateObject {:gte "2023-01-01", :lte "2023-01-31"}}}
                                 {:range {:dateObject {:gte "2024-01-01", :lte "2024-01-31"}}}]}}
-                 (m/decode
-                   schema
-                   {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
-                                 {:from "2024-01-01", :to "2024-01-31"}]}
-                   sut/transformer))))))))
+                 (transform schema {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
+                                                 {:from "2024-01-01", :to "2024-01-31"}]}))))))))
