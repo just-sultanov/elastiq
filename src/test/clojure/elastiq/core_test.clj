@@ -61,8 +61,9 @@
 
           (testing "collection of booleans"
             (is (valid? schema {:booleanObject [true false]}))
-            (is (= {:bool {:must [{:term {:booleanObject true}}
-                                  {:term {:booleanObject false}}]}}
+            (is (= {:bool {:must [{:bool {:minimum_should_match 1
+                                          :should [{:term {:booleanObject true}}
+                                                   {:term {:booleanObject false}}]}}]}}
                    (transform schema {:booleanObject [true false]})))))))
 
 
@@ -81,10 +82,9 @@
 
           (testing "collection of strings"
             (is (valid? schema {:keywordWithAnalyzer ["foo" "bar"]}))
-            (is (= {:bool {:must [{:match {:keywordWithAnalyzer {:query "foo"
-                                                                 :analyzer "some_keyword_analyzer"}}}
-                                  {:match {:keywordWithAnalyzer {:query "bar"
-                                                                 :analyzer "some_keyword_analyzer"}}}]}}
+            (is (= {:bool {:must [{:bool {:minimum_should_match 1
+                                          :should [{:match {:keywordWithAnalyzer {:query "foo" :analyzer "some_keyword_analyzer"}}}
+                                                   {:match {:keywordWithAnalyzer {:query "bar" :analyzer "some_keyword_analyzer"}}}]}}]}}
                    (transform schema {:keywordWithAnalyzer ["foo" "bar"]})))))))
 
 
@@ -109,8 +109,9 @@
         (testing "collection of maps"
           (is (valid? schema {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
                                            {:from "2024-01-01", :to "2024-01-31"}]}))
-          (is (= {:bool {:must [{:range {:dateObject {:gte "2023-01-01", :lte "2023-01-31"}}}
-                                {:range {:dateObject {:gte "2024-01-01", :lte "2024-01-31"}}}]}}
+          (is (= {:bool {:must [{:bool {:minimum_should_match 1
+                                        :should [{:range {:dateObject {:gte "2023-01-01", :lte "2023-01-31"}}}
+                                                 {:range {:dateObject {:gte "2024-01-01", :lte "2024-01-31"}}}]}}]}}
                  (transform schema {:dateObject [{:from "2023-01-01", :to "2023-01-31"}
                                                  {:from "2024-01-01", :to "2024-01-31"}]}))))))
 
@@ -146,19 +147,17 @@
 
           (testing "collection of keywords"
             (is (= {:bool {:must [{:nested {:path :nestedObject
-                                            :query {:bool {:must [{:match {:nestedObject.fieldOne {:query "foo"
-                                                                                                   :analyzer "some_text_analyzer"}}}
-                                                                  {:match {:nestedObject.fieldOne {:query "bar"
-                                                                                                   :analyzer "some_text_analyzer"}}}]}}}}]}}
+                                            :query {:bool {:must [{:bool {:minimum_should_match 1
+                                                                          :should [{:match {:nestedObject.fieldOne {:query "foo" :analyzer "some_text_analyzer"}}}
+                                                                                   {:match {:nestedObject.fieldOne {:query "bar" :analyzer "some_text_analyzer"}}}]}}]}}}}]}}
                    (transform schema {:nestedObject {:fieldOne ["foo" "bar"]}})))))
 
         (testing "collection of maps"
           (is (valid? schema {:nestedObject [{:fieldOne "foo"} {:fieldOne "bar"}]}))
           #_(is (= {:bool {:must [{:nested {:path :nestedObject
-                                          :query {:bool {:must [{:match {:nestedObject.fieldOne {:query "foo"
-                                                                                                 :analyzer "some_text_analyzer"}}}
-                                                                {:match {:nestedObject.fieldOne {:query "bar"
-                                                                                                 :analyzer "some_text_analyzer"}}}]}}}}]}}
+                                          :query {:bool {:must [{:bool {:minimum_should_match 1
+                                                                        :should [[{:match {:nestedObject.fieldOne {:query "foo" :analyzer "some_text_analyzer"}}}
+                                                                                  {:match {:nestedObject.fieldOne {:query "bar" :analyzer "some_text_analyzer"}}}]]}}]}}}}]}}
                  (transform schema {:nestedObject [{:fieldOne "foo"}
                                                    {:fieldOne "bar"}]}))))))))
 

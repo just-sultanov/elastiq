@@ -69,6 +69,33 @@
     {:range {field {:gte from, :lte to}}}))
 
 
+(defn or-query
+  [queries]
+  (when (seq queries)
+    {:bool {:minimum_should_match 1
+            :should queries}}))
+
+
+(defn and-query
+  [queries]
+  (when (seq queries)
+    {:bool {:must queries}}))
+
+
+(defn nested-query
+  [{:search/keys [field]} v]
+  (let [queries (reduce-kv
+                  (fn [acc _field query]
+                    (cond
+                      (map? query) (conj acc query)
+                      (sequential? query) (into acc query)
+                      :else acc))
+                  [] v)]
+    (when (seq queries)
+      {:nested {:path field
+                :query {:bool {:must queries}}}})))
+
+
 ;;
 ;; Query builders
 ;;
@@ -82,12 +109,12 @@
    (fn boolean-query-builder
      [schema _]
      (let [props (m/properties schema)]
-       {:enter
+       {:leave
         (fn [x]
           (cond
             (wildcard? x) (exists-query props)
             (boolean? x) (term-query props x)
-            (sequential? x) (mapv (partial term-query props) x)
+            (sequential? x) (->> x (mapv (partial term-query props)) (or-query))
             :else (throw
                     (ex-info
                       "Unsupported type"
@@ -101,12 +128,12 @@
    (fn keyword-query-builder
      [schema _]
      (let [props (m/properties schema)]
-       {:enter
+       {:leave
         (fn [x]
           (cond
             (wildcard? x) (exists-query props)
             (string? x) (match-query props x)
-            (sequential? x) (mapv (partial match-query props) x)
+            (sequential? x) (->> x (mapv (partial match-query props)) (or-query))
             :else
             (throw
               (ex-info
@@ -121,12 +148,12 @@
    (fn date-query-builder
      [schema _]
      (let [props (m/properties schema)]
-       {:enter
+       {:leave
         (fn [x]
           (cond
             (wildcard? x) (exists-query props)
             (map? x) (range-query props x)
-            (sequential? x) (mapv (partial range-query props) x)
+            (sequential? x) (->> x (mapv (partial range-query props)) (or-query))
             :else (throw
                     (ex-info
                       (format "Unsupported type: %s" (type x))
@@ -135,26 +162,18 @@
                        :problems (me/humanize (m/explain schema x))}))))}))})
 
 
+
 (def nested-query-builder
   {:compile
    (fn nested-query-builder
      [schema _]
-     (let [{:search/keys [field] :as props} (m/properties schema)]
+     (let [props (m/properties schema)]
        {:leave
         (fn [x]
           (cond
             (wildcard? x) (exists-query props)
-            (sequential? x) x ; FIXME: doesn't work
-            (map? x) (let [queries (reduce-kv
-                                     (fn [acc _field query]
-                                       (cond
-                                         (map? query) (conj acc query)
-                                         (sequential? query) (into acc query)
-                                         :else acc))
-                                     [] x)]
-                       (when (seq queries)
-                         {:nested {:path field
-                                   :query {:bool {:must queries}}}}))
+            (map? x) (nested-query props x)
+            (sequential? x) x #_(->> x (mapv (partial nested-query props)) (or-query))
             :else (throw
                     (ex-info
                       (format "Unsupported type: %s" (type x))
@@ -170,15 +189,14 @@
      {:leave
       (fn [x]
         (if (map? x)
-          (let [queries (reduce-kv
-                          (fn [acc _field query]
-                            (cond
-                              (map? query) (conj acc query)
-                              (sequential? query) (into acc query)
-                              :else acc))
-                          [] x)]
-            (when (seq queries)
-              {:bool {:must queries}}))
+          (->> (reduce-kv
+                 (fn [acc _field query]
+                   (cond
+                     (map? query) (conj acc query)
+                     (sequential? query) (into acc query)
+                     :else acc))
+                 [] x)
+               (and-query))
           (throw
             (ex-info
               (format "Unsupported type: %s" (type x))
@@ -260,12 +278,13 @@
                       (conj acc (entry {:search/parent-field field, :search/field nfield, :search/metadata nmetadata}))))
                   [] (:properties metadata))]
     (when (seq entries)
-      (let [schema (into [:map] entries)]
-        [field
-         {:search/field field
-          :search/metadata metadata
-          :decode/query-builder nested-query-builder}
-         [:or schema [:sequential {:min 1} schema] [:= "*"]]]))))
+      (let [schema (into
+                     [:map
+                      {:search/field field
+                       :search/metadata metadata
+                       :decode/query-builder nested-query-builder}]
+                     entries)]
+        [field [:or schema [:sequential {:min 1} schema] [:= "*"]]]))))
 
 
 (defn schema
